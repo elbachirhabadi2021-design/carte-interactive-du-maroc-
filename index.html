@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Carte Choroplèthe du Maroc</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body {height:100%;margin:0;}
+    #map {width:100%;height:100vh;}
+    .legend {line-height:18px;color:#555;background:white;padding:6px;border-radius:5px;}
+    .legend i {width:18px;height:18px;float:left;margin-right:8px;opacity:0.7;}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map').setView([31.8, -7.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(map);
+
+    function getColor(d) {
+      return d > 7000000 ? '#800026' :
+             d > 5000000 ? '#BD0026' :
+             d > 4000000 ? '#E31A1C' :
+             d > 3000000 ? '#FC4E2A' :
+             d > 2000000 ? '#FD8D3C' :
+             d > 1000000 ? '#FEB24C' :
+             d > 500000  ? '#FED976' : '#FFEDA0';
+    }
+
+    function style(f) {
+      var n = f.properties["Marocains"] || f.properties["Marrocains"] || f.properties["marocains"] || f.properties[" Marocains"] || 0;
+      return {fillColor:getColor(n),weight:1,opacity:1,color:'white',dashArray:'3',fillOpacity:0.7};
+    }
+
+    function highlight(e) {
+      e.target.setStyle({weight:2,color:'#666',fillOpacity:1});
+      e.target.bringToFront();
+    }
+
+    function reset(e) { geojson.resetStyle(e.target); }
+    function zoom(e) { map.fitBounds(e.target.getBounds()); }
+
+    var geojson;
+
+    fetch("marocg.geojson")
+      .then(r => r.json())
+      .then(d => {
+        geojson = L.geoJson(d, {
+          style: style,
+          onEachFeature: (f, l) => {
+            var nom = f.properties["nom_region"] || "Région inconnue";
+            var n = f.properties["Marocains"] || f.properties["Marrocains"] || f.properties["marocains"] || f.properties[" Marocains"] || 0;
+            l.bindPopup("<b>" + nom + "</b><br>Marocains : " + n.toLocaleString());
+            l.on({mouseover:highlight,mouseout:reset,click:zoom});
+          }
+        }).addTo(map);
+
+        var legend = L.control({position:'bottomright'});
+        legend.onAdd = m => {
+          var div = L.DomUtil.create('div', 'legend'),
+              grades = [0,500000,1000000,2000000,3000000,4000000,5000000,7000000],
+              labels = [];
+          for (var i=0;i<grades.length;i++) {
+            var from = grades[i], to = grades[i+1];
+            labels.push('<i style="background:'+getColor(from+1)+'"></i> '+from.toLocaleString()+(to?'–'+to.toLocaleString():'+'));
+          }
+          div.innerHTML = labels.join('<br>');
+          return div;
+        };
+        legend.addTo(map);
+      });
+  </script>
+</body>
+</html>
